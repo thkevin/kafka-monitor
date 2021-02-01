@@ -13,6 +13,7 @@ package com.linkedin.xinfra.monitor.services;
 import com.linkedin.xinfra.monitor.XinfraMonitorConstants;
 import com.linkedin.xinfra.monitor.common.Utils;
 import com.linkedin.xinfra.monitor.services.configs.TopicManagementServiceConfig;
+import com.linkedin.xinfra.monitor.services.configs.ClusterTopicManipulationServiceConfig;
 import com.linkedin.xinfra.monitor.services.metrics.ClusterTopicManipulationMetrics;
 import com.linkedin.xinfra.monitor.topicfactory.TopicFactory;
 import java.lang.reflect.InvocationTargetException;
@@ -67,6 +68,7 @@ public class ClusterTopicManipulationService implements Service {
 
   private final ClusterTopicManipulationMetrics _clusterTopicManipulationMetrics;
   private final TopicFactory _topicFactory;
+  private final String _topicPrefix;
 
   public ClusterTopicManipulationService(String name, AdminClient adminClient, Map<String, Object> props)
       throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException,
@@ -87,6 +89,12 @@ public class ClusterTopicManipulationService implements Service {
     Metrics metrics = new Metrics(metricConfig, reporters, new SystemTime());
     Map<String, String> tags = new HashMap<>();
     tags.put("name", name);
+
+    ClusterTopicManipulationServiceConfig topicManipulationConfig = new ClusterTopicManipulationServiceConfig(props);
+    // Check if topic manipulation topis's prefix is defined in config. Use the constant if not
+    _topicPrefix = topicManipulationConfig.getString(
+      ClusterTopicManipulationServiceConfig.TOPIC_MANIPULATION_SERVICE_TOPIC_PREFIX_CONFIG);
+
     TopicManagementServiceConfig config = new TopicManagementServiceConfig(props);
     String topicFactoryClassName = config.getString(TopicManagementServiceConfig.TOPIC_FACTORY_CLASS_CONFIG);
     @SuppressWarnings("rawtypes")
@@ -157,7 +165,7 @@ public class ClusterTopicManipulationService implements Service {
     if (_isOngoingTopicCreationDone) {
 
       int random = ThreadLocalRandom.current().nextInt();
-      _currentlyOngoingTopic = XinfraMonitorConstants.TOPIC_MANIPULATION_SERVICE_TOPIC + Math.abs(random);
+      _currentlyOngoingTopic = _topicPrefix + Math.abs(random);
 
       try {
         int brokerCount = _adminClient.describeCluster().nodes().get().size();
